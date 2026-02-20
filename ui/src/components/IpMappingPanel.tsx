@@ -1,337 +1,213 @@
 import { useState } from 'react'
+import { Card, CardBody, CardHeader, Button, Input, Select, SelectItem, Chip, Divider } from '@heroui/react'
 import { Plus, Trash2, Wifi, Network, Edit2, Check, X, Monitor } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import type { NginxConfig, IpMapping } from '@/types/nginx'
+import { cn } from '@/lib/utils'
 
-interface KassenPanelProps {
-  config: NginxConfig
-  onChange: (config: NginxConfig) => void
+interface Props { config: NginxConfig; onChange: (c: NginxConfig) => void; dark: boolean }
+
+function validateIp(ip: string) {
+  return /^(\d{1,3}\.){3}\d{1,3}$/.test(ip) && ip.split('.').every((p) => parseInt(p) <= 255)
 }
 
-function validateIp(ip: string): boolean {
-  return /^(\d{1,3}\.){3}\d{1,3}$/.test(ip) &&
-    ip.split('.').every((p) => parseInt(p) <= 255)
-}
-
-function ConnectionToggle({
-  value,
-  onChange,
-}: {
-  value: 'LAN' | 'WLAN'
-  onChange: (v: 'LAN' | 'WLAN') => void
-}) {
+function TypeToggle({ value, onChange }: { value: 'LAN' | 'WLAN'; onChange: (v: 'LAN' | 'WLAN') => void }) {
   return (
-    <div className="flex rounded-md border border-[hsl(var(--border))] overflow-hidden">
-      <button
-        onClick={() => onChange('LAN')}
-        className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold transition-colors ${
-          value === 'LAN'
-            ? 'bg-[hsl(160,60%,45%)]/15 text-[hsl(160,60%,55%)]'
-            : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--accent))]'
-        }`}
-      >
-        <Network className="h-3 w-3" />
-        LAN
-      </button>
-      <div className="w-px bg-[hsl(var(--border))]" />
-      <button
-        onClick={() => onChange('WLAN')}
-        className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold transition-colors ${
-          value === 'WLAN'
-            ? 'bg-[hsl(38,90%,55%)]/15 text-[hsl(38,90%,60%)]'
-            : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--accent))]'
-        }`}
-      >
-        <Wifi className="h-3 w-3" />
-        WLAN
-      </button>
+    <div className="flex rounded-lg border border-default-200 overflow-hidden">
+      {(['LAN', 'WLAN'] as const).map((t) => {
+        const active = value === t
+        return (
+          <button
+            key={t}
+            onClick={() => onChange(t)}
+            className={cn(
+              'flex items-center gap-1 px-3 py-1.5 text-xs font-semibold transition-colors',
+              active
+                ? t === 'LAN'
+                  ? 'bg-success-100 text-success-700 dark:bg-success-500/15 dark:text-success-400'
+                  : 'bg-warning-100 text-warning-700 dark:bg-warning-500/15 dark:text-warning-400'
+                : 'text-default-400 hover:bg-default-100'
+            )}
+          >
+            {t === 'LAN' ? <Network className="h-3 w-3" /> : <Wifi className="h-3 w-3" />}
+            {t}
+          </button>
+        )
+      })}
     </div>
   )
 }
 
-function KassenRow({
-  mapping,
-  upstreams,
-  onChange,
-  onDelete,
-}: {
+function KassenRow({ mapping, upstreams, onChange, onDelete }: {
   mapping: IpMapping
   upstreams: NginxConfig['upstreams']
-  onChange: (updated: IpMapping) => void
+  onChange: (u: IpMapping) => void
   onDelete: () => void
 }) {
-  const [editingName, setEditingName] = useState(false)
+  const [editing, setEditing] = useState(false)
   const [nameVal, setNameVal] = useState(mapping.name ?? '')
 
-  const commitName = () => {
+  const commit = () => {
     onChange({ ...mapping, name: nameVal.trim() || undefined })
-    setEditingName(false)
+    setEditing(false)
   }
 
-  const isWlan = mapping.connectionType === 'WLAN'
-  const displayName = mapping.name || `Kasse ${mapping.ip.split('.').pop()}`
+  const isWlan   = mapping.connectionType === 'WLAN'
+  const dispName = mapping.name || `Kasse ${mapping.ip.split('.').pop()}`
 
   return (
-    <div className="group flex items-center gap-3 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-4 py-3 transition-colors hover:border-[hsl(var(--ring))]/30">
-      {/* Connection type toggle */}
-      <ConnectionToggle
-        value={mapping.connectionType ?? 'LAN'}
-        onChange={(v) => onChange({ ...mapping, connectionType: v })}
-      />
+    <div className="group flex items-center gap-3 rounded-xl border border-default-200 bg-default-50/50 dark:bg-default-50/5 px-4 py-3 transition-colors hover:border-primary-200">
+      <TypeToggle value={mapping.connectionType ?? 'LAN'} onChange={(v) => onChange({ ...mapping, connectionType: v })} />
 
-      {/* Name + IP */}
       <div className="flex-1 min-w-0">
-        {editingName ? (
+        {editing ? (
           <div className="flex items-center gap-1">
             <Input
-              value={nameVal}
-              onChange={(e) => setNameVal(e.target.value)}
-              className="h-7 text-sm w-36"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') commitName()
-                if (e.key === 'Escape') setEditingName(false)
-              }}
+              size="sm" value={nameVal} onValueChange={setNameVal}
+              classNames={{ input: 'text-xs', inputWrapper: 'h-7' }}
+              onKeyDown={(e) => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false) }}
               autoFocus
             />
-            <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={commitName}>
-              <Check className="h-3 w-3" />
-            </Button>
-            <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => setEditingName(false)}>
-              <X className="h-3 w-3" />
-            </Button>
+            <Button isIconOnly size="sm" variant="light" color="success" onPress={commit}><Check className="h-3 w-3" /></Button>
+            <Button isIconOnly size="sm" variant="light" onPress={() => setEditing(false)}><X className="h-3 w-3" /></Button>
           </div>
         ) : (
-          <button
-            className="flex items-center gap-1.5 group/name text-left"
-            onClick={() => { setNameVal(mapping.name ?? ''); setEditingName(true) }}
-          >
-            <span className="text-sm font-semibold">{displayName}</span>
-            <Edit2 className="h-3 w-3 text-[hsl(var(--muted-foreground))] opacity-0 group-hover/name:opacity-100 transition-opacity" />
+          <button className="flex items-center gap-1.5 group/n text-left" onClick={() => { setNameVal(mapping.name ?? ''); setEditing(true) }}>
+            <span className="text-[13px] font-semibold text-foreground">{dispName}</span>
+            <Edit2 className="h-3 w-3 text-default-300 opacity-0 group-hover/n:opacity-100 transition-opacity" />
           </button>
         )}
-        <p className="text-[11px] text-[hsl(var(--muted-foreground))] font-mono mt-0.5">{mapping.ip}</p>
+        <p className="text-[11px] text-default-400 font-mono mt-0.5">{mapping.ip}</p>
       </div>
 
-      {/* Verbindungstyp-Pill */}
-      <div className="flex items-center gap-1.5 shrink-0">
-        <div
-          className="h-1.5 w-1.5 rounded-full"
-          style={{ backgroundColor: isWlan ? 'hsl(38,90%,55%)' : 'hsl(160,60%,50%)' }}
-        />
-        <span className="text-xs text-[hsl(var(--muted-foreground))] hidden sm:block">
-          {isWlan ? 'Wireless' : 'Kabel'}
-        </span>
-      </div>
+      <Chip size="sm" color={isWlan ? 'warning' : 'success'} variant="flat"
+        startContent={isWlan ? <Wifi className="h-2.5 w-2.5" /> : <Network className="h-2.5 w-2.5" />}
+        classNames={{ base: 'h-5', content: 'text-[10px] font-semibold hidden sm:block' }}>
+        {isWlan ? 'Wireless' : 'Kabel'}
+      </Chip>
 
-      {/* Drucker-Zuweisung */}
-      <div className="flex items-center gap-2 shrink-0">
-        <span className="text-xs text-[hsl(var(--muted-foreground))] hidden md:block">→</span>
-        <Select
-          value={mapping.upstream}
-          onChange={(e) => onChange({ ...mapping, upstream: e.target.value })}
-          className="h-8 text-xs w-36"
-        >
-          {upstreams.map((u) => (
-            <option key={u.name} value={u.name}>{u.name}</option>
-          ))}
-        </Select>
-      </div>
+      <Select size="sm" selectedKeys={[mapping.upstream]}
+        onSelectionChange={(keys) => onChange({ ...mapping, upstream: [...keys][0] as string })}
+        classNames={{ base: 'w-36', trigger: 'h-8 min-h-8 text-xs' }} aria-label="Drucker">
+        {upstreams.map((u) => <SelectItem key={u.name}>{u.name}</SelectItem>)}
+      </Select>
 
-      {/* Löschen */}
-      <Button
-        size="icon"
-        variant="ghost"
-        className="h-8 w-8 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--destructive))]"
-        onClick={onDelete}
-      >
-        <Trash2 className="h-4 w-4" />
+      <Button isIconOnly size="sm" variant="light" color="danger"
+        className="opacity-0 group-hover:opacity-100 transition-opacity" onPress={onDelete}>
+        <Trash2 className="h-3.5 w-3.5" />
       </Button>
     </div>
   )
 }
 
-export function KassenPanel({ config, onChange }: KassenPanelProps) {
+export function KassenPanel({ config, onChange, dark }: Props) {
   const [newName,     setNewName]     = useState('')
   const [newIp,       setNewIp]       = useState('')
   const [newType,     setNewType]     = useState<'LAN' | 'WLAN'>('LAN')
   const [newUpstream, setNewUpstream] = useState(config.upstreams[0]?.name ?? '')
   const [ipError,     setIpError]     = useState('')
 
-  const updateMapping = (ip: string, updated: IpMapping) => {
-    onChange({
-      ...config,
-      ipMappings: config.ipMappings.map((m) => (m.ip === ip ? updated : m)),
-    })
-  }
+  const cardCls = dark ? 'bg-[#161b22] border-[#21262d]' : 'bg-white border-slate-200'
 
-  const deleteMapping = (ip: string) => {
-    onChange({
-      ...config,
-      ipMappings: config.ipMappings.filter((m) => m.ip !== ip),
-    })
-  }
+  const updateM = (ip: string, upd: IpMapping) =>
+    onChange({ ...config, ipMappings: config.ipMappings.map((m) => m.ip === ip ? upd : m) })
+  const deleteM = (ip: string) =>
+    onChange({ ...config, ipMappings: config.ipMappings.filter((m) => m.ip !== ip) })
 
   const addKasse = () => {
     const ip = newIp.trim()
-    if (!validateIp(ip)) { setIpError('Ungültige IP-Adresse'); return }
-    if (config.ipMappings.find((m) => m.ip === ip)) { setIpError('IP bereits vergeben'); return }
+    if (!validateIp(ip))                            { setIpError('Ungültige IP-Adresse'); return }
+    if (config.ipMappings.find((m) => m.ip === ip)) { setIpError('IP bereits vergeben');  return }
     setIpError('')
     onChange({
       ...config,
-      ipMappings: [
-        ...config.ipMappings,
-        {
-          ip,
-          upstream: newUpstream || config.upstreams[0]?.name,
-          name: newName.trim() || undefined,
-          connectionType: newType,
-        },
-      ],
+      ipMappings: [...config.ipMappings, {
+        ip, upstream: newUpstream || config.upstreams[0]?.name,
+        name: newName.trim() || undefined, connectionType: newType,
+      }],
     })
-    setNewName('')
-    setNewIp('')
-    setNewType('LAN')
+    setNewName(''); setNewIp(''); setNewType('LAN')
   }
 
-  const lanMappings  = config.ipMappings.filter((m) => m.connectionType !== 'WLAN')
-  const wlanMappings = config.ipMappings.filter((m) => m.connectionType === 'WLAN')
-
-  const SectionHeader = ({ icon, label, count }: { icon: React.ReactNode; label: string; count: number }) => (
-    <div className="flex items-center gap-2 mb-2">
-      {icon}
-      <span className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">{label}</span>
-      <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{count}</Badge>
-    </div>
-  )
+  const lan  = config.ipMappings.filter((m) => m.connectionType !== 'WLAN')
+  const wlan = config.ipMappings.filter((m) => m.connectionType === 'WLAN')
 
   return (
     <div className="space-y-4">
-      {/* Kassen list */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <Monitor className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
-            Kassen verwalten
-          </CardTitle>
-          <CardDescription className="text-xs">
-            Name, Verbindungstyp (LAN/WLAN) und Drucker-Zuweisung pro Terminal
-          </CardDescription>
+      <Card className={cn('border shadow-sm', cardCls)} shadow="none">
+        <CardHeader className="px-5 pt-5 pb-3 flex flex-col items-start gap-0.5">
+          <div className="flex items-center gap-2">
+            <Monitor className="h-4 w-4 text-default-400" />
+            <p className="text-[14px] font-semibold text-foreground">Kassen verwalten</p>
+          </div>
+          <p className="text-[12px] text-default-400">Name, Verbindungstyp (LAN/WLAN) und Drucker-Zuweisung</p>
         </CardHeader>
-        <CardContent className="space-y-5">
+        <Divider />
+        <CardBody className="px-5 py-4 space-y-5">
           {config.ipMappings.length === 0 && (
-            <p className="text-sm text-[hsl(var(--muted-foreground))] text-center py-4">
-              Noch keine Kassen konfiguriert.
-            </p>
+            <p className="text-sm text-default-400 text-center py-4">Noch keine Kassen konfiguriert.</p>
           )}
-
-          {lanMappings.length > 0 && (
+          {lan.length > 0 && (
             <div>
-              <SectionHeader
-                icon={<Network className="h-3.5 w-3.5 text-[hsl(160,60%,50%)]" />}
-                label="Kabel (LAN)"
-                count={lanMappings.length}
-              />
+              <div className="flex items-center gap-2 mb-2">
+                <Network className="h-3.5 w-3.5 text-success-400" />
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-default-400">Kabel (LAN)</span>
+                <Chip size="sm" variant="flat" classNames={{ base: 'h-4', content: 'text-[10px]' }}>{lan.length}</Chip>
+              </div>
               <div className="space-y-2">
-                {lanMappings.map((m) => (
-                  <KassenRow
-                    key={m.ip}
-                    mapping={m}
-                    upstreams={config.upstreams}
-                    onChange={(updated) => updateMapping(m.ip, updated)}
-                    onDelete={() => deleteMapping(m.ip)}
-                  />
-                ))}
+                {lan.map((m) => <KassenRow key={m.ip} mapping={m} upstreams={config.upstreams} onChange={(u) => updateM(m.ip, u)} onDelete={() => deleteM(m.ip)} />)}
               </div>
             </div>
           )}
-
-          {wlanMappings.length > 0 && (
+          {wlan.length > 0 && (
             <div>
-              <SectionHeader
-                icon={<Wifi className="h-3.5 w-3.5 text-[hsl(38,90%,55%)]" />}
-                label="Wireless (WLAN)"
-                count={wlanMappings.length}
-              />
+              <div className="flex items-center gap-2 mb-2">
+                <Wifi className="h-3.5 w-3.5 text-warning-400" />
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-default-400">Wireless (WLAN)</span>
+                <Chip size="sm" variant="flat" classNames={{ base: 'h-4', content: 'text-[10px]' }}>{wlan.length}</Chip>
+              </div>
               <div className="space-y-2">
-                {wlanMappings.map((m) => (
-                  <KassenRow
-                    key={m.ip}
-                    mapping={m}
-                    upstreams={config.upstreams}
-                    onChange={(updated) => updateMapping(m.ip, updated)}
-                    onDelete={() => deleteMapping(m.ip)}
-                  />
-                ))}
+                {wlan.map((m) => <KassenRow key={m.ip} mapping={m} upstreams={config.upstreams} onChange={(u) => updateM(m.ip, u)} onDelete={() => deleteM(m.ip)} />)}
               </div>
             </div>
           )}
-        </CardContent>
+        </CardBody>
       </Card>
 
-      {/* Neue Kasse hinzufügen */}
-      <Card className="border-dashed border-[hsl(var(--border))] bg-[hsl(var(--muted))]/30">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">Neue Kasse hinzufügen</CardTitle>
-          <CardDescription className="text-xs">
-            Name, IP-Adresse, Verbindungstyp und Drucker angeben
-          </CardDescription>
+      <Card className={cn('border border-dashed shadow-sm', cardCls)} shadow="none">
+        <CardHeader className="px-5 pt-5 pb-3 flex flex-col items-start gap-0.5">
+          <p className="text-[14px] font-semibold text-foreground">Neue Kasse hinzufügen</p>
+          <p className="text-[12px] text-default-400">Name, IP, Verbindungstyp und Drucker angeben</p>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <Divider />
+        <CardBody className="px-5 py-4 space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Name (optional)</Label>
-              <Input
-                placeholder="Kasse Theke"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                className="text-sm"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">IP-Adresse</Label>
-              <Input
-                placeholder="10.1.0.35"
-                value={newIp}
-                onChange={(e) => { setNewIp(e.target.value); setIpError('') }}
-                onKeyDown={(e) => e.key === 'Enter' && addKasse()}
-                className={`font-mono text-sm ${ipError ? 'border-[hsl(var(--destructive))]' : ''}`}
-              />
-              {ipError && <p className="text-xs text-[hsl(var(--destructive))]">{ipError}</p>}
-            </div>
+            <Input label="Name (optional)" placeholder="Kasse Theke" size="sm" value={newName} onValueChange={setNewName} />
+            <Input
+              label="IP-Adresse" placeholder="10.1.0.35" size="sm"
+              value={newIp} onValueChange={(v) => { setNewIp(v); setIpError('') }}
+              onKeyDown={(e) => e.key === 'Enter' && addKasse()}
+              isInvalid={!!ipError} errorMessage={ipError}
+              classNames={{ input: 'font-mono' }}
+            />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 items-end">
             <div className="space-y-1.5">
-              <Label className="text-xs">Verbindungstyp</Label>
-              <ConnectionToggle value={newType} onChange={setNewType} />
+              <p className="text-[12px] text-default-500 font-medium">Verbindungstyp</p>
+              <TypeToggle value={newType} onChange={setNewType} />
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Drucker</Label>
-              <Select
-                value={newUpstream}
-                onChange={(e) => setNewUpstream(e.target.value)}
-              >
-                {config.upstreams.map((u) => (
-                  <option key={u.name} value={u.name}>{u.name}</option>
-                ))}
-              </Select>
-            </div>
+            <Select label="Drucker" size="sm"
+              selectedKeys={[newUpstream]}
+              onSelectionChange={(keys) => setNewUpstream([...keys][0] as string)}
+              aria-label="Drucker wählen">
+              {config.upstreams.map((u) => <SelectItem key={u.name}>{u.name}</SelectItem>)}
+            </Select>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={addKasse}
-            disabled={!newIp.trim()}
-            className="w-full"
-          >
-            <Plus className="h-4 w-4" />
+          <Button color="primary" variant="flat" size="sm" fullWidth
+            startContent={<Plus className="h-4 w-4" />}
+            onPress={addKasse} isDisabled={!newIp.trim()}>
             Kasse hinzufügen
           </Button>
-        </CardContent>
+        </CardBody>
       </Card>
     </div>
   )

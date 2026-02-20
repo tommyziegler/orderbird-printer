@@ -1,120 +1,106 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Select } from '@/components/ui/select'
-import { Separator } from '@/components/ui/separator'
+import { Card, CardBody, CardHeader, Input, Select, SelectItem, Divider } from '@heroui/react'
 import { Settings, FileText } from 'lucide-react'
 import type { NginxConfig } from '@/types/nginx'
 
-interface GeneralPanelProps {
-  config: NginxConfig
-  onChange: (config: NginxConfig) => void
-}
+interface Props { config: NginxConfig; onChange: (c: NginxConfig) => void }
 
-export function GeneralPanel({ config, onChange }: GeneralPanelProps) {
+const LOG_FIELDS = [
+  ['$time_local',              'Timestamp'],
+  ['$remote_addr:$remote_port','Client IP + Port'],
+  ['$upstream_addr',           'Drucker-Backend'],
+  ['$status',                  'Verbindungsstatus'],
+  ['$bytes_sent / $bytes_received', 'Transfergröße'],
+  ['$session_time',            'Verbindungsdauer'],
+]
+
+export function GeneralPanel({ config, onChange }: Props) {
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Settings className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
-            TCP Server
-          </CardTitle>
-          <CardDescription className="text-xs">
-            Core nginx stream server settings
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Listen Port</Label>
-              <Input
-                type="number"
-                min={1}
-                max={65535}
-                value={config.listenPort}
-                onChange={(e) =>
-                  onChange({ ...config, listenPort: parseInt(e.target.value, 10) || 9100 })
-                }
-                className="font-mono"
-              />
-              <p className="text-[10px] text-[hsl(var(--muted-foreground))]">
-                Default: 9100 (RAW printing protocol)
-              </p>
+      <Card className="border border-default-200 bg-content1 shadow-sm" shadow="none">
+        <CardHeader className="px-5 pt-5 pb-3">
+          <div className="flex items-center gap-2">
+            <Settings className="h-4 w-4 text-default-400" />
+            <div>
+              <p className="text-[14px] font-semibold text-foreground">TCP Server</p>
+              <p className="text-[12px] text-default-400">nginx Stream Grundeinstellungen</p>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Default Upstream</Label>
+          </div>
+        </CardHeader>
+        <Divider />
+        <CardBody className="px-5 py-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Input
+                label="Listen Port"
+                type="number"
+                min={1} max={65535}
+                size="sm"
+                value={String(config.listenPort)}
+                onValueChange={(v) => onChange({ ...config, listenPort: parseInt(v, 10) || 9100 })}
+                description="Standard: 9100 (RAW-Druckprotokoll)"
+                classNames={{ input: 'font-mono' }}
+              />
+            </div>
+            <div>
               <Select
-                value={config.defaultUpstream}
-                onChange={(e) => onChange({ ...config, defaultUpstream: e.target.value })}
+                label="Standard-Upstream"
+                size="sm"
+                selectedKeys={[config.defaultUpstream]}
+                onSelectionChange={(keys) => onChange({ ...config, defaultUpstream: [...keys][0] as string })}
+                description="Fallback für nicht konfigurierte Kassen"
+                aria-label="Standard-Upstream wählen"
               >
                 {config.upstreams.map((u) => (
-                  <option key={u.name} value={u.name}>
-                    {u.name}
-                  </option>
+                  <SelectItem key={u.name}>{u.name}</SelectItem>
                 ))}
               </Select>
-              <p className="text-[10px] text-[hsl(var(--muted-foreground))]">
-                Fallback for unmapped client IPs
-              </p>
             </div>
           </div>
-        </CardContent>
+        </CardBody>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <FileText className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
-            Logging
-          </CardTitle>
-          <CardDescription className="text-xs">
-            Access log configuration for the TCP stream
-          </CardDescription>
+      <Card className="border border-default-200 bg-content1 shadow-sm" shadow="none">
+        <CardHeader className="px-5 pt-5 pb-3">
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4 text-default-400" />
+            <div>
+              <p className="text-[14px] font-semibold text-foreground">Logging</p>
+              <p className="text-[12px] text-default-400">Access Log Konfiguration</p>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-1.5">
-            <Label className="text-xs">Log Path</Label>
-            <Input
-              value={config.logPath}
-              onChange={(e) => onChange({ ...config, logPath: e.target.value })}
-              className="font-mono text-sm"
-              placeholder="/var/log/nginx/tcp_router.log"
-            />
-          </div>
-          <Separator />
-          <div className="space-y-1.5">
-            <Label className="text-xs">Log Format Name</Label>
-            <Input
-              value={config.logFormat}
-              onChange={(e) => onChange({ ...config, logFormat: e.target.value })}
-              className="font-mono text-sm"
-              placeholder="tcp_router"
-            />
-          </div>
-          <div className="rounded-lg bg-[hsl(var(--muted))] p-3">
-            <p className="text-[10px] font-medium text-[hsl(var(--muted-foreground))] mb-2 uppercase tracking-wide">
-              Log format fields
+        <Divider />
+        <CardBody className="px-5 py-4 space-y-4">
+          <Input
+            label="Log-Pfad"
+            size="sm"
+            value={config.logPath}
+            onValueChange={(v) => onChange({ ...config, logPath: v })}
+            placeholder="/var/log/nginx/tcp_router.log"
+            classNames={{ input: 'font-mono' }}
+          />
+          <Input
+            label="Log-Format Name"
+            size="sm"
+            value={config.logFormat}
+            onValueChange={(v) => onChange({ ...config, logFormat: v })}
+            placeholder="tcp_router"
+            classNames={{ input: 'font-mono' }}
+          />
+          <div className="rounded-xl border border-default-100 bg-default-50 dark:bg-default-50/5 p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-default-400 mb-3">
+              Verfügbare Log-Felder
             </p>
-            <div className="space-y-1">
-              {[
-                ['$time_local', 'Timestamp'],
-                ['$remote_addr:$remote_port', 'Client IP + Port'],
-                ['$upstream_addr', 'Printer backend'],
-                ['$status', 'Connection status'],
-                ['$bytes_sent / $bytes_received', 'Transfer size'],
-                ['$session_time', 'Connection duration'],
-              ].map(([field, desc]) => (
-                <div key={field} className="flex items-center gap-2">
-                  <code className="text-[10px] font-mono text-[hsl(210,80%,65%)] w-48 shrink-0">
-                    {field}
-                  </code>
-                  <span className="text-[10px] text-[hsl(var(--muted-foreground))]">{desc}</span>
+            <div className="space-y-1.5">
+              {LOG_FIELDS.map(([field, desc]) => (
+                <div key={field} className="flex items-center gap-3">
+                  <code className="text-[11px] font-mono text-primary-400 w-52 shrink-0">{field}</code>
+                  <span className="text-[11px] text-default-400">{desc}</span>
                 </div>
               ))}
             </div>
           </div>
-        </CardContent>
+        </CardBody>
       </Card>
     </div>
   )
