@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Printer, LayoutDashboard, GitBranch, Server, FileCode, ChevronRight } from 'lucide-react'
+import { Printer, LayoutDashboard, GitBranch, Server, FileCode } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { parseNginxConfig, DEFAULT_CONFIG } from '@/lib/nginxParser'
 import { DashboardPanel } from '@/components/DashboardPanel'
@@ -64,16 +64,16 @@ export default function App() {
   return (
     <div className="flex min-h-screen bg-[hsl(var(--background))]">
       {/* Sidebar */}
-      <aside className="w-60 shrink-0 border-r border-[hsl(var(--border))] bg-[hsl(var(--card))] flex flex-col">
+      <aside className="w-60 shrink-0 border-r border-[hsl(var(--border))] bg-[hsl(var(--sidebar))] flex flex-col">
         {/* Logo */}
         <div className="flex items-center gap-3 px-5 py-5 border-b border-[hsl(var(--border))]">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(210,80%,55%)]/20">
-            <Printer className="h-4 w-4 text-[hsl(210,80%,65%)]" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[hsl(217,91%,60%)] to-[hsl(240,70%,52%)] shadow-lg shadow-[hsl(217,91%,60%)]/25">
+            <Printer className="h-4.5 w-4.5 text-white" />
           </div>
           <div>
-            <p className="text-sm font-semibold leading-none">orderbird</p>
-            <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-0.5 leading-none">
-              printer driver
+            <p className="text-sm font-bold leading-none tracking-tight">orderbird</p>
+            <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-0.5 leading-none font-medium tracking-wide uppercase">
+              Printer Driver
             </p>
           </div>
         </div>
@@ -85,40 +85,47 @@ export default function App() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors text-sm',
+                'relative w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all text-sm',
                 activeTab === tab.id
-                  ? 'bg-[hsl(210,80%,55%)]/15 text-[hsl(210,80%,70%)]'
+                  ? 'bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]'
                   : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--accent))] hover:text-[hsl(var(--foreground))]'
               )}
             >
+              {activeTab === tab.id && (
+                <div className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-[hsl(var(--primary))]" />
+              )}
               <span
                 className={cn(
                   'transition-colors',
                   activeTab === tab.id
-                    ? 'text-[hsl(210,80%,65%)]'
+                    ? 'text-[hsl(var(--primary))]'
                     : 'text-[hsl(var(--muted-foreground))]'
                 )}
               >
                 {tab.icon}
               </span>
               <span className="font-medium">{tab.label}</span>
-              {activeTab === tab.id && (
-                <ChevronRight className="h-3 w-3 ml-auto text-[hsl(210,80%,65%)]" />
-              )}
             </button>
           ))}
         </nav>
 
         {/* Footer */}
         <div className="p-4 border-t border-[hsl(var(--border))]">
-          <div className="rounded-lg bg-[hsl(var(--muted))] px-3 py-2">
-            <p className="text-[10px] font-medium text-[hsl(var(--muted-foreground))] uppercase tracking-wide mb-1">
-              Status
+          <div className="rounded-lg bg-[hsl(var(--muted))] border border-[hsl(var(--border))] px-3 py-2.5">
+            <p className="text-[9px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-widest mb-1.5">
+              Live Status
             </p>
             <div className="flex items-center gap-2">
-              <div className="h-1.5 w-1.5 rounded-full bg-[hsl(142,60%,45%)] animate-pulse" />
-              <p className="text-xs text-[hsl(var(--foreground))]">
-                :{config.listenPort} · {config.upstreams.length} upstreams
+              <div className="relative flex h-2 w-2">
+                <div className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[hsl(var(--success))] opacity-60" />
+                <div className="relative inline-flex rounded-full h-2 w-2 bg-[hsl(var(--success))]" />
+              </div>
+              <p className="text-xs font-medium text-[hsl(var(--foreground))]">
+                :{config.listenPort}
+              </p>
+              <span className="text-[hsl(var(--border))]">·</span>
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                {config.upstreams.length} upstreams
               </p>
             </div>
           </div>
@@ -128,14 +135,14 @@ export default function App() {
       {/* Main content area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] px-8 py-4 flex items-center justify-between">
+        <header className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))]/80 backdrop-blur-sm px-8 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-base font-semibold">{activeTabMeta.label}</h1>
-            <p className="text-xs text-[hsl(var(--muted-foreground))]">{activeTabMeta.description}</p>
+            <h1 className="text-base font-semibold tracking-tight">{activeTabMeta.label}</h1>
+            <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">{activeTabMeta.description}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-[hsl(142,60%,45%)]" />
-            <span className="text-xs text-[hsl(var(--muted-foreground))]">
+          <div className="flex items-center gap-2 rounded-full bg-[hsl(var(--muted))] border border-[hsl(var(--border))] px-3 py-1.5">
+            <div className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--success))]" />
+            <span className="text-xs text-[hsl(var(--muted-foreground))] font-medium">
               nginx stream · port {config.listenPort}
             </span>
           </div>

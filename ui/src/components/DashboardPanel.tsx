@@ -1,4 +1,4 @@
-import { Printer, Network, Server, GitBranch } from 'lucide-react'
+import { Printer, Network, Server, GitBranch, ArrowRight } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
@@ -7,6 +7,13 @@ import type { NginxConfig } from '@/types/nginx'
 interface DashboardPanelProps {
   config: NginxConfig
 }
+
+const STAT_ACCENTS = [
+  { bg: 'bg-[hsl(217,91%,60%)]/10', icon: 'text-[hsl(217,91%,65%)]', border: 'border-[hsl(217,91%,60%)]/20' },
+  { bg: 'bg-[hsl(265,80%,65%)]/10', icon: 'text-[hsl(265,80%,70%)]', border: 'border-[hsl(265,80%,65%)]/20' },
+  { bg: 'bg-[hsl(160,60%,45%)]/10', icon: 'text-[hsl(160,60%,50%)]', border: 'border-[hsl(160,60%,45%)]/20' },
+  { bg: 'bg-[hsl(35,90%,55%)]/10',  icon: 'text-[hsl(35,90%,60%)]',  border: 'border-[hsl(35,90%,55%)]/20'  },
+]
 
 export function DashboardPanel({ config }: DashboardPanelProps) {
   const totalIps = config.ipMappings.length
@@ -21,40 +28,53 @@ export function DashboardPanel({ config }: DashboardPanelProps) {
           label="Listen Port"
           value={`:${config.listenPort}`}
           sub="TCP stream"
+          accent={STAT_ACCENTS[0]}
         />
         <StatCard
           icon={<Server className="h-5 w-5" />}
           label="Upstreams"
           value={String(upstreams.length)}
           sub="printer groups"
+          accent={STAT_ACCENTS[1]}
         />
         <StatCard
           icon={<GitBranch className="h-5 w-5" />}
           label="IP Routes"
           value={String(totalIps)}
           sub="mapped clients"
+          accent={STAT_ACCENTS[2]}
         />
         <StatCard
           icon={<Printer className="h-5 w-5" />}
           label="Printers"
           value={String(upstreams.reduce((n, u) => n + u.servers.length, 0))}
           sub="backend servers"
+          accent={STAT_ACCENTS[3]}
         />
       </div>
 
       {/* Routing overview */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">Routing Overview</CardTitle>
+          <CardTitle className="text-sm font-semibold">Routing Overview</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {upstreams.map((upstream) => {
+          <div className="space-y-0">
+            {upstreams.map((upstream, idx) => {
               const ips = config.ipMappings.filter((m) => m.upstream === upstream.name)
               const isDefault = upstream.name === config.defaultUpstream
               return (
                 <div key={upstream.name}>
-                  <div className="flex items-start gap-4">
+                  <div className="flex items-start gap-4 py-3">
+                    <div
+                      className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+                      style={{ backgroundColor: `hsl(${[217, 265, 160, 35][idx % 4]}, ${[91, 80, 60, 90][idx % 4]}%, ${[60, 65, 45, 55][idx % 4]}%, 0.15)` }}
+                    >
+                      <Server
+                        className="h-3.5 w-3.5"
+                        style={{ color: `hsl(${[217, 265, 160, 35][idx % 4]}, ${[91, 80, 60, 90][idx % 4]}%, ${[65, 70, 50, 60][idx % 4]}%)` }}
+                      />
+                    </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <code className="text-sm font-mono font-semibold text-[hsl(var(--foreground))]">
@@ -65,7 +85,7 @@ export function DashboardPanel({ config }: DashboardPanelProps) {
                             default
                           </Badge>
                         )}
-                        <Badge variant="outline" className="text-[10px] h-4 px-1.5">
+                        <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-mono">
                           {upstream.servers.map((s) => s.address).join(', ')}
                         </Badge>
                       </div>
@@ -74,21 +94,21 @@ export function DashboardPanel({ config }: DashboardPanelProps) {
                           {ips.map((m) => (
                             <div
                               key={m.ip}
-                              className="flex items-center gap-1 rounded-md bg-[hsl(var(--muted))] px-2 py-1"
+                              className="flex items-center gap-1.5 rounded-md bg-[hsl(var(--muted))] border border-[hsl(var(--border))] px-2 py-1"
                             >
-                              <div className="h-1.5 w-1.5 rounded-full bg-[hsl(142,60%,45%)]" />
-                              <code className="text-xs font-mono">{m.ip}</code>
+                              <div className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--success))]" />
+                              <code className="text-xs font-mono text-[hsl(var(--foreground))]">{m.ip}</code>
                             </div>
                           ))}
                         </div>
                       ) : (
                         <p className="text-xs text-[hsl(var(--muted-foreground))] italic">
-                          No specific IPs — receives{isDefault ? ' all unmatched traffic' : ' no traffic unless reassigned'}
+                          No specific IPs —{isDefault ? ' receives all unmatched traffic' : ' no traffic unless reassigned'}
                         </p>
                       )}
                     </div>
                   </div>
-                  <Separator className="mt-3" />
+                  {idx < upstreams.length - 1 && <Separator />}
                 </div>
               )
             })}
@@ -99,39 +119,53 @@ export function DashboardPanel({ config }: DashboardPanelProps) {
       {/* Traffic flow diagram */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium">Traffic Flow</CardTitle>
+          <CardTitle className="text-sm font-semibold">Traffic Flow</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-3 overflow-x-auto pb-2">
-            {/* Client */}
-            <div className="shrink-0 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))] p-3 text-center min-w-[110px]">
-              <Network className="h-5 w-5 mx-auto mb-1.5 text-[hsl(var(--muted-foreground))]" />
-              <p className="text-xs font-medium">Client</p>
-              <p className="text-[10px] text-[hsl(var(--muted-foreground))]">POS Terminal</p>
-            </div>
+          <div className="flex items-center gap-4 overflow-x-auto pb-2">
+            {/* Client node */}
+            <FlowNode
+              icon={<Network className="h-5 w-5" />}
+              label="Client"
+              sub="POS Terminal"
+              color="hsl(215,20%,52%)"
+              borderColor="hsl(var(--border))"
+              bgColor="hsl(var(--muted))"
+            />
 
-            <Arrow label={`port ${config.listenPort}`} />
+            <FlowArrow label={`TCP :${config.listenPort}`} />
 
-            {/* nginx */}
-            <div className="shrink-0 rounded-lg border border-[hsl(210,80%,55%)]/40 bg-[hsl(210,80%,55%)]/10 p-3 text-center min-w-[110px]">
-              <div className="text-[hsl(210,80%,65%)] text-lg font-bold mb-1">N</div>
-              <p className="text-xs font-medium">nginx</p>
-              <p className="text-[10px] text-[hsl(var(--muted-foreground))]">stream router</p>
-            </div>
+            {/* nginx node */}
+            <FlowNode
+              icon={<div className="text-[hsl(217,91%,65%)] text-base font-black leading-none">N</div>}
+              label="nginx"
+              sub="stream router"
+              color="hsl(217,91%,65%)"
+              borderColor="hsl(217,91%,60%,0.35)"
+              bgColor="hsl(217,91%,60%,0.08)"
+              highlight
+            />
 
-            <Arrow label="map $remote_addr" />
+            <FlowArrow label="map $remote_addr" />
 
-            {/* Upstreams */}
+            {/* Upstream nodes */}
             <div className="shrink-0 flex flex-col gap-2">
-              {upstreams.map((u) => (
+              {upstreams.map((u, idx) => (
                 <div
                   key={u.name}
-                  className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))] p-2 text-center min-w-[130px]"
+                  className="rounded-xl border px-3 py-2.5 text-center min-w-[140px]"
+                  style={{
+                    borderColor: `hsl(${[217, 265, 160, 35][idx % 4]}, ${[91, 80, 60, 90][idx % 4]}%, ${[60, 65, 45, 55][idx % 4]}%, 0.25)`,
+                    background: `hsl(${[217, 265, 160, 35][idx % 4]}, ${[91, 80, 60, 90][idx % 4]}%, ${[60, 65, 45, 55][idx % 4]}%, 0.07)`,
+                  }}
                 >
-                  <Printer className="h-4 w-4 mx-auto mb-1 text-[hsl(var(--muted-foreground))]" />
-                  <p className="text-[11px] font-mono font-medium">{u.name}</p>
+                  <Printer
+                    className="h-4 w-4 mx-auto mb-1.5"
+                    style={{ color: `hsl(${[217, 265, 160, 35][idx % 4]}, ${[91, 80, 60, 90][idx % 4]}%, ${[65, 70, 50, 60][idx % 4]}%)` }}
+                  />
+                  <p className="text-[11px] font-mono font-semibold text-[hsl(var(--foreground))]">{u.name}</p>
                   {u.servers.map((s) => (
-                    <p key={s.address} className="text-[10px] text-[hsl(var(--muted-foreground))] font-mono">
+                    <p key={s.address} className="text-[10px] text-[hsl(var(--muted-foreground))] font-mono mt-0.5">
                       {s.address}
                     </p>
                   ))}
@@ -150,33 +184,68 @@ function StatCard({
   label,
   value,
   sub,
+  accent,
 }: {
   icon: React.ReactNode
   label: string
   value: string
   sub: string
+  accent: { bg: string; icon: string; border: string }
 }) {
   return (
-    <Card>
+    <Card className={`border ${accent.border} overflow-hidden`}>
       <CardContent className="p-4">
         <div className="flex items-start justify-between mb-3">
-          <div className="text-[hsl(var(--muted-foreground))]">{icon}</div>
+          <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${accent.bg} ${accent.icon}`}>
+            {icon}
+          </div>
         </div>
         <p className="text-2xl font-bold font-mono tracking-tight">{value}</p>
-        <p className="text-xs font-medium text-[hsl(var(--foreground))] mt-0.5">{label}</p>
-        <p className="text-[10px] text-[hsl(var(--muted-foreground))]">{sub}</p>
+        <p className="text-xs font-semibold text-[hsl(var(--foreground))] mt-0.5">{label}</p>
+        <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-0.5">{sub}</p>
       </CardContent>
     </Card>
   )
 }
 
-function Arrow({ label }: { label: string }) {
+function FlowNode({
+  icon,
+  label,
+  sub,
+  color,
+  borderColor,
+  bgColor,
+  highlight = false,
+}: {
+  icon: React.ReactNode
+  label: string
+  sub: string
+  color: string
+  borderColor: string
+  bgColor: string
+  highlight?: boolean
+}) {
   return (
-    <div className="shrink-0 flex flex-col items-center gap-0.5">
-      <p className="text-[9px] text-[hsl(var(--muted-foreground))] whitespace-nowrap">{label}</p>
-      <div className="flex items-center">
-        <div className="h-px w-10 bg-[hsl(var(--border))]" />
-        <div className="border-t-4 border-b-4 border-l-6 border-t-transparent border-b-transparent border-l-[hsl(var(--muted-foreground))] h-0 w-0" />
+    <div
+      className={`shrink-0 rounded-xl border p-3.5 text-center min-w-[110px] ${highlight ? 'shadow-lg' : ''}`}
+      style={{ borderColor, background: bgColor, boxShadow: highlight ? `0 4px 20px ${color}20` : undefined }}
+    >
+      <div className="flex justify-center mb-2" style={{ color }}>
+        {icon}
+      </div>
+      <p className="text-xs font-semibold">{label}</p>
+      <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-0.5">{sub}</p>
+    </div>
+  )
+}
+
+function FlowArrow({ label }: { label: string }) {
+  return (
+    <div className="shrink-0 flex flex-col items-center gap-1">
+      <p className="text-[9px] text-[hsl(var(--muted-foreground))] whitespace-nowrap font-medium">{label}</p>
+      <div className="flex items-center gap-0">
+        <div className="h-px w-10 bg-gradient-to-r from-[hsl(var(--border))] to-[hsl(var(--muted-foreground))]/40" />
+        <ArrowRight className="h-3 w-3 text-[hsl(var(--muted-foreground))]/60 -ml-1" />
       </div>
     </div>
   )
