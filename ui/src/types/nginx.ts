@@ -8,8 +8,10 @@ export interface Upstream {
 }
 
 export interface IpMapping {
-  ip: string;       // e.g. "10.1.0.30"
-  upstream: string; // e.g. "printer_down"
+  ip: string;                         // e.g. "10.1.0.30"
+  upstream: string;                   // e.g. "printer_down"
+  name?: string;                      // friendly label e.g. "Kasse 1"
+  connectionType?: 'LAN' | 'WLAN';   // network type for display
 }
 
 export interface NginxConfig {

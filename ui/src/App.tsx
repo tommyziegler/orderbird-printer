@@ -1,15 +1,14 @@
 import { useState } from 'react'
-import { Printer, LayoutDashboard, GitBranch, Server, FileCode } from 'lucide-react'
+import { Printer, LayoutDashboard, Settings, FileCode, Monitor, Wifi } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { parseNginxConfig, DEFAULT_CONFIG } from '@/lib/nginxParser'
 import { DashboardPanel } from '@/components/DashboardPanel'
-import { IpMappingPanel } from '@/components/IpMappingPanel'
+import { KassenPanel } from '@/components/IpMappingPanel'
 import { UpstreamsPanel } from '@/components/UpstreamsPanel'
 import { ConfigEditorPanel } from '@/components/ConfigEditorPanel'
 import { GeneralPanel } from '@/components/GeneralPanel'
 import type { NginxConfig } from '@/types/nginx'
 
-// Pre-load with the orderbird config
 const INITIAL_RAW = `load_module modules/ngx_stream_module.so;worker_processes auto;events { worker_connections 1024; }stream {log_format tcp_router'ts=$time_local msec=$msec ''$remote_addr:$remote_port -> $upstream_addr ''status=$status bytes_sent=$bytes_sent bytes_received=$bytes_received ''time=$session_time';access_log /var/log/nginx/tcp_router_9100.log tcp_router;map $remote_addr $printer_upstream {default printer_down;10.1.0.30 printer_down;10.1.0.31 printer_down;10.1.0.32 printer_up;10.1.0.33 printer_up;10.1.0.34 printer_up;}upstream printer_down { server 10.1.0.11:9100; }upstream printer_up { server 10.1.0.12:9100; }server {listen 9100;proxy_pass $printer_upstream;}}`
 
 function loadInitial(): NginxConfig {
@@ -20,38 +19,38 @@ function loadInitial(): NginxConfig {
   }
 }
 
-type Tab = 'dashboard' | 'general' | 'upstreams' | 'mapping' | 'config'
+type Tab = 'dashboard' | 'kassen' | 'drucker' | 'einstellungen' | 'config'
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode; description: string }[] = [
   {
     id: 'dashboard',
-    label: 'Dashboard',
+    label: 'Übersicht',
     icon: <LayoutDashboard className="h-4 w-4" />,
-    description: 'Overview & routing diagram',
+    description: 'Kassen & Drucker Routing',
   },
   {
-    id: 'general',
-    label: 'General',
-    icon: <Server className="h-4 w-4" />,
-    description: 'Port & logging settings',
+    id: 'kassen',
+    label: 'Kassen',
+    icon: <Monitor className="h-4 w-4" />,
+    description: 'POS-Terminals verwalten',
   },
   {
-    id: 'upstreams',
-    label: 'Upstreams',
+    id: 'drucker',
+    label: 'Drucker',
     icon: <Printer className="h-4 w-4" />,
-    description: 'Printer backend groups',
+    description: 'Druckergruppen & Server',
   },
   {
-    id: 'mapping',
-    label: 'IP Routing',
-    icon: <GitBranch className="h-4 w-4" />,
-    description: 'Map IPs to printers',
+    id: 'einstellungen',
+    label: 'Einstellungen',
+    icon: <Settings className="h-4 w-4" />,
+    description: 'Port & Logging',
   },
   {
     id: 'config',
-    label: 'Config',
+    label: 'Konfiguration',
     icon: <FileCode className="h-4 w-4" />,
-    description: 'Generated nginx.conf',
+    description: 'nginx.conf',
   },
 ]
 
@@ -60,6 +59,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
 
   const activeTabMeta = TABS.find((t) => t.id === activeTab)!
+  const lanCount = config.ipMappings.filter((m) => m.connectionType !== 'WLAN').length
+  const wlanCount = config.ipMappings.filter((m) => m.connectionType === 'WLAN').length
 
   return (
     <div className="flex min-h-screen bg-[hsl(var(--background))]">
@@ -73,7 +74,7 @@ export default function App() {
           <div>
             <p className="text-sm font-bold leading-none tracking-tight">orderbird</p>
             <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-0.5 leading-none font-medium tracking-wide uppercase">
-              Printer Driver
+              Drucker Manager
             </p>
           </div>
         </div>
@@ -94,14 +95,7 @@ export default function App() {
               {activeTab === tab.id && (
                 <div className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-[hsl(var(--primary))]" />
               )}
-              <span
-                className={cn(
-                  'transition-colors',
-                  activeTab === tab.id
-                    ? 'text-[hsl(var(--primary))]'
-                    : 'text-[hsl(var(--muted-foreground))]'
-                )}
-              >
+              <span className={cn('transition-colors', activeTab === tab.id ? 'text-[hsl(var(--primary))]' : 'text-[hsl(var(--muted-foreground))]')}>
                 {tab.icon}
               </span>
               <span className="font-medium">{tab.label}</span>
@@ -110,23 +104,24 @@ export default function App() {
         </nav>
 
         {/* Footer */}
-        <div className="p-4 border-t border-[hsl(var(--border))]">
+        <div className="p-4 border-t border-[hsl(var(--border))] space-y-2">
           <div className="rounded-lg bg-[hsl(var(--muted))] border border-[hsl(var(--border))] px-3 py-2.5">
-            <p className="text-[9px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-widest mb-1.5">
-              Live Status
+            <p className="text-[9px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-widest mb-2">
+              Verbindungen
             </p>
-            <div className="flex items-center gap-2">
-              <div className="relative flex h-2 w-2">
+            <div className="flex items-center gap-1.5 mb-1">
+              <div className="h-1.5 w-1.5 rounded-full bg-[hsl(160,60%,50%)]" />
+              <span className="text-xs text-[hsl(var(--foreground))]">{lanCount} LAN</span>
+              <span className="text-[hsl(var(--border))] ml-1">·</span>
+              <Wifi className="h-3 w-3 text-[hsl(38,90%,55%)] ml-1" />
+              <span className="text-xs text-[hsl(var(--foreground))]">{wlanCount} WLAN</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="relative flex h-1.5 w-1.5">
                 <div className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[hsl(var(--success))] opacity-60" />
-                <div className="relative inline-flex rounded-full h-2 w-2 bg-[hsl(var(--success))]" />
+                <div className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[hsl(var(--success))]" />
               </div>
-              <p className="text-xs font-medium text-[hsl(var(--foreground))]">
-                :{config.listenPort}
-              </p>
-              <span className="text-[hsl(var(--border))]">·</span>
-              <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                {config.upstreams.length} upstreams
-              </p>
+              <span className="text-xs text-[hsl(var(--muted-foreground))]">:{config.listenPort} aktiv</span>
             </div>
           </div>
         </div>
@@ -143,7 +138,7 @@ export default function App() {
           <div className="flex items-center gap-2 rounded-full bg-[hsl(var(--muted))] border border-[hsl(var(--border))] px-3 py-1.5">
             <div className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--success))]" />
             <span className="text-xs text-[hsl(var(--muted-foreground))] font-medium">
-              nginx stream · port {config.listenPort}
+              {config.ipMappings.length} Kassen · {config.upstreams.length} Drucker
             </span>
           </div>
         </header>
@@ -152,9 +147,9 @@ export default function App() {
         <main className="flex-1 overflow-y-auto p-8">
           <div className="max-w-4xl mx-auto">
             {activeTab === 'dashboard' && <DashboardPanel config={config} />}
-            {activeTab === 'general' && <GeneralPanel config={config} onChange={setConfig} />}
-            {activeTab === 'upstreams' && <UpstreamsPanel config={config} onChange={setConfig} />}
-            {activeTab === 'mapping' && <IpMappingPanel config={config} onChange={setConfig} />}
+            {activeTab === 'kassen' && <KassenPanel config={config} onChange={setConfig} />}
+            {activeTab === 'drucker' && <UpstreamsPanel config={config} onChange={setConfig} />}
+            {activeTab === 'einstellungen' && <GeneralPanel config={config} onChange={setConfig} />}
             {activeTab === 'config' && <ConfigEditorPanel config={config} onChange={setConfig} />}
           </div>
         </main>
