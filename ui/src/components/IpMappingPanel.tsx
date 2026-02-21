@@ -1,8 +1,25 @@
 import { useState } from 'react'
-import { Card, CardBody, CardHeader, Button, Input, Select, SelectItem, Chip, Divider } from '@heroui/react'
-import { Plus, Trash2, Wifi, Network, Edit2, Check, X, Monitor } from 'lucide-react'
+import { Card, CardBody, CardHeader, Button, Input, Select, SelectItem, Chip, Divider, Tooltip } from '@heroui/react'
+import { Plus, Trash2, Wifi, Network, Edit2, Check, X, Monitor, AlertTriangle } from 'lucide-react'
 import type { NginxConfig, IpMapping } from '@/types/nginx'
+import { deviceMetrics, SIGNAL_COLOR, SIGNAL_LABEL, RISK_LABEL, type SignalLevel, type RiskLevel } from '@/lib/networkMetrics'
 import { cn } from '@/lib/utils'
+
+function SignalMini({ level, pct }: { level: SignalLevel; pct: number }) {
+  const color = SIGNAL_COLOR[level]
+  const bars  = level === 'excellent' ? 4 : level === 'good' ? 3 : level === 'fair' ? 2 : 1
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className="flex items-end gap-[2px]">
+        {[1,2,3,4].map((b) => (
+          <div key={b} className="w-[2.5px] rounded-sm"
+            style={{ height: `${5 + b * 2.5}px`, background: b <= bars ? color : '#334155' }} />
+        ))}
+      </div>
+      <span className="text-[10px] font-mono font-semibold" style={{ color }}>{pct}%</span>
+    </div>
+  )
+}
 
 interface Props { config: NginxConfig; onChange: (c: NginxConfig) => void; dark: boolean }
 
@@ -53,9 +70,15 @@ function KassenRow({ mapping, upstreams, onChange, onDelete }: {
 
   const isWlan   = mapping.connectionType === 'WLAN'
   const dispName = mapping.name || `Kasse ${mapping.ip.split('.').pop()}`
+  const met      = isWlan ? deviceMetrics(mapping.ip, 'WLAN') : null
 
   return (
-    <div className="group flex items-center gap-3 rounded-xl border border-default-200 bg-default-50/50 dark:bg-default-50/5 px-4 py-3 transition-colors hover:border-primary-200">
+    <div className={cn(
+      'group flex items-center gap-3 rounded-xl border px-4 py-3 transition-colors',
+      isWlan && met?.needsAttention
+        ? 'border-warning-300 dark:border-warning-500/30 bg-warning-50/40 dark:bg-warning-500/5 hover:border-warning-400'
+        : 'border-default-200 bg-default-50/50 dark:bg-default-50/5 hover:border-primary-200'
+    )}>
       <TypeToggle value={mapping.connectionType ?? 'LAN'} onChange={(v) => onChange({ ...mapping, connectionType: v })} />
 
       <div className="flex-1 min-w-0">
@@ -72,12 +95,34 @@ function KassenRow({ mapping, upstreams, onChange, onDelete }: {
           </div>
         ) : (
           <button className="flex items-center gap-1.5 group/n text-left" onClick={() => { setNameVal(mapping.name ?? ''); setEditing(true) }}>
+            {isWlan && met?.needsAttention && (
+              <Tooltip content={`Signal schwach (${met.signal}%) — LAN empfohlen`} placement="top">
+                <AlertTriangle className="h-3 w-3 text-warning-400 shrink-0" />
+              </Tooltip>
+            )}
             <span className="text-[13px] font-semibold text-foreground">{dispName}</span>
             <Edit2 className="h-3 w-3 text-default-300 opacity-0 group-hover/n:opacity-100 transition-opacity" />
           </button>
         )}
         <p className="text-[11px] text-default-400 font-mono mt-0.5">{mapping.ip}</p>
       </div>
+
+      {/* Signal quality for WLAN */}
+      {isWlan && met ? (
+        <Tooltip
+          placement="top"
+          content={`${SIGNAL_LABEL[met.signalLevel]} · ${met.errorRate}% Fehler · ${met.latencyMs}ms · Risiko: ${RISK_LABEL[met.timeoutRisk as RiskLevel]}`}
+        >
+          <div className="cursor-default">
+            <SignalMini level={met.signalLevel} pct={met.signal} />
+          </div>
+        </Tooltip>
+      ) : (
+        <div className="flex items-center gap-1 text-[10px] text-success-400 font-semibold">
+          <Network className="h-3 w-3" />
+          <span>stabil</span>
+        </div>
+      )}
 
       <Chip size="sm" color={isWlan ? 'warning' : 'success'} variant="flat"
         startContent={isWlan ? <Wifi className="h-2.5 w-2.5" /> : <Network className="h-2.5 w-2.5" />}
